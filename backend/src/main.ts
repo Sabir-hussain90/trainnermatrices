@@ -1,11 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { json, urlencoded } from 'express';
+import { ExpressAdapter } from '@nestjs/platform-express';
+import express, { json, urlencoded } from 'express';
 
-let app;
+// Create the raw Express instance
+const server = express();
 
-async function bootstrap() {
-  app = await NestFactory.create(AppModule);
+export async function bootstrap() {
+  // Pass the Express instance to NestJS
+  const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
 
   // Increase payload limit to 50MB to allow base64 images
   app.use(json({ limit: '50mb' }));
@@ -16,16 +19,19 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // 👇 Only listen locally. Vercel will use the exported app instance.
-  if (process.env.NODE_ENV !== 'production') {
-    const port = Number(process.env.PORT) || 4000;
-    await app.listen(port);
-    console.log(`🚀 API running on http://localhost:${port}`);
-  }
-  
-  return app;
+  await app.init();
 }
 
-// 👇 CRITICAL FOR VERCEL
-const server = bootstrap();
+// Initialize the app
+bootstrap();
+
+// Only listen locally. Vercel sets process.env.VERCEL = "1" automatically.
+if (!process.env.VERCEL) {
+  const port = Number(process.env.PORT) || 4000;
+  server.listen(port, '0.0.0.0', () => {
+    console.log(`🚀 API running on port ${port}`);
+  });
+}
+
+// CRITICAL FOR VERCEL: Export the raw express server, not the NestJS promise
 export default server;
