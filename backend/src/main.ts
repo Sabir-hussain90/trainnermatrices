@@ -2,8 +2,10 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { json, urlencoded } from 'express';
 
+let app;
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  app = await NestFactory.create(AppModule);
 
   // Increase payload limit to 50MB to allow base64 images
   app.use(json({ limit: '50mb' }));
@@ -14,9 +16,16 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const port = Number(process.env.PORT) || 4000;
-  await app.listen(port);
-  console.log(`🚀 API running on http://localhost:${port}`);
+  // 👇 Only listen locally. Vercel will use the exported app instance.
+  if (process.env.NODE_ENV !== 'production') {
+    const port = Number(process.env.PORT) || 4000;
+    await app.listen(port);
+    console.log(`🚀 API running on http://localhost:${port}`);
+  }
+  
+  return app;
 }
 
-bootstrap();
+// 👇 CRITICAL FOR VERCEL
+const server = bootstrap();
+export default server;
