@@ -1,29 +1,33 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ExpressAdapter } from '@nestjs/platform-express';
-import express from 'express';
+import { ValidationPipe } from '@nestjs/common';
 
-const server = express();
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
 
-export async function bootstrap() {
-  const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
-
+  // 1. Enable CORS for your live frontend
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: [
+      'http://localhost:3000',
+      'https://trainnermatrices-i8n8.vercel.app', // Your Frontend URL (no trailing slash)
+    ],
     credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS', // OPTIONS is critical
+    allowedHeaders: 'Content-Type,Authorization',
   });
 
-  await app.init();
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  // 2. Start the server
+  const port = process.env.PORT || 4000;
+  await app.listen(port, '0.0.0.0');
+  console.log(`🚀 Backend is running on: http://localhost:${port}`);
 }
 
 bootstrap();
-
-// Only listen if running locally (Vercel sets process.env.VERCEL automatically)
-if (!process.env.VERCEL) {
-  const port = Number(process.env.PORT) || 4000;
-  server.listen(port, '0.0.0.0', () => {
-    console.log(`🚀 API running on port ${port}`);
-  });
-}
-
-export default server;
